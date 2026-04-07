@@ -17,4 +17,5 @@ export type StoreData = {
 	todos: Todo[];
 	branches: Branch[];
 	projectDir?: string;
+	globalCommands?: string[];
 };

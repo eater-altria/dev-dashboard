@@ -8,9 +8,13 @@ const storePath = path.join(os.homedir(), '.dev-dashboard-data.json');
 export function loadData(): StoreData {
 	try {
 		const raw = fs.readFileSync(storePath, 'utf8');
-		return JSON.parse(raw) as StoreData;
+		const data = JSON.parse(raw) as StoreData;
+		if (!data.globalCommands) {
+			data.globalCommands = [];
+		}
+		return data;
 	} catch {
-		return {todos: [], branches: []};
+		return {todos: [], branches: [], globalCommands: []};
 	}
 }
 

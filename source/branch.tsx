@@ -1,17 +1,21 @@
 import React, {useState, useEffect} from 'react';
 import {Box, Text, useInput} from 'ink';
 import TextInput from 'ink-text-input';
+import {execSync} from 'node:child_process';
+import os from 'node:os';
+import path from 'node:path';
 import {type Branch, type StoreData} from './types.js';
 import {loadData, saveData, generateId, getProjectRepos} from './store.js';
 
-type BranchMode = 'list' | 'action' | 'add';
+type BranchMode = 'list' | 'action' | 'add' | 'deleteGitPrompt';
 type AddStep =
 	| 'choose'
 	| 'dirPrompt'
 	| 'repoInput'
 	| 'repoSelect'
 	| 'branchInput'
-	| 'descInput';
+	| 'descInput'
+	| 'gitPrompt';
 
 type Props = {
 	isActive: boolean;
@@ -89,6 +93,11 @@ export default function BranchList({isActive, onFormModeChange}: Props) {
 				description: formDesc.trim(),
 			};
 			persistBranches([...branches, newBranch]);
+
+			if (storeData?.projectDir) {
+				setAddStep('gitPrompt');
+				return;
+			}
 		}
 
 		setMode('list');
@@ -119,13 +128,51 @@ export default function BranchList({isActive, onFormModeChange}: Props) {
 			}
 
 			if (input === 'd') {
-				const newBranches = branches.filter((_, i) => i !== selectedIndex);
-				persistBranches(newBranches);
-				setSelectedIndex(i => Math.min(i, newBranches.length - 1));
-				setMode('list');
+				if (storeData?.projectDir) {
+					setMode('deleteGitPrompt');
+				} else {
+					const newBranches = branches.filter((_, i) => i !== selectedIndex);
+					persistBranches(newBranches);
+					setSelectedIndex(i => Math.max(0, Math.min(i, newBranches.length - 1)));
+					setMode('list');
+				}
 			}
 		},
 		{isActive: isActive && mode === 'action'},
+	);
+
+	// Delete Git Prompt mode
+	useInput(
+		(input, key) => {
+			if (key.escape) {
+				setMode('list');
+				return;
+			}
+
+			const doDeleteRecord = () => {
+				const newBranches = branches.filter((_, i) => i !== selectedIndex);
+				persistBranches(newBranches);
+				setSelectedIndex(i => Math.max(0, Math.min(i, newBranches.length - 1)));
+				setMode('list');
+			};
+
+			if (input.toLowerCase() === 'y') {
+				const selectedBranch = branches[selectedIndex];
+				if (selectedBranch && storeData?.projectDir) {
+					try {
+						const fullPath = storeData.projectDir.startsWith('~')
+							? path.join(os.homedir(), storeData.projectDir.slice(1))
+							: storeData.projectDir;
+						const repoPath = path.join(fullPath, selectedBranch.repo);
+						execSync(`git branch -D ${selectedBranch.branch}`, {cwd: repoPath, stdio: 'ignore'});
+					} catch {}
+				}
+				doDeleteRecord();
+			} else if (input.toLowerCase() === 'n') {
+				doDeleteRecord();
+			}
+		},
+		{isActive: isActive && mode === 'deleteGitPrompt'},
 	);
 
 	// Add mode - choose step
@@ -185,6 +232,32 @@ export default function BranchList({isActive, onFormModeChange}: Props) {
 					addStep === 'branchInput' ||
 					addStep === 'descInput'),
 		},
+	);
+
+	// Add mode - git prompt
+	useInput(
+		(input, key) => {
+			if (key.escape) {
+				setMode('list');
+				return;
+			}
+
+			if (input.toLowerCase() === 'y') {
+				if (storeData?.projectDir) {
+					try {
+						const fullPath = storeData.projectDir.startsWith('~')
+							? path.join(os.homedir(), storeData.projectDir.slice(1))
+							: storeData.projectDir;
+						const repoPath = path.join(fullPath, formRepo.trim());
+						execSync(`git checkout -b ${formBranch.trim()}`, {cwd: repoPath, stdio: 'ignore'});
+					} catch {}
+				}
+				setMode('list');
+			} else if (input.toLowerCase() === 'n') {
+				setMode('list');
+			}
+		},
+		{isActive: isActive && mode === 'add' && addStep === 'gitPrompt'},
 	);
 
 	// ---------- RENDER ----------
@@ -325,6 +398,17 @@ export default function BranchList({isActive, onFormModeChange}: Props) {
 						</Box>
 					</Box>
 				)}
+
+				{addStep === 'gitPrompt' && (
+					<Box flexDirection="column">
+						<Box>
+							<Text color="green">记录已保存 ✓</Text>
+						</Box>
+						<Box marginTop={1}>
+							<Text color="yellow">是否要在目标仓库 ({formRepo}) 中真实创建分支 '{formBranch}' ? [y]是 [n]否</Text>
+						</Box>
+					</Box>
+				)}
 			</Box>
 		);
 	}
@@ -368,6 +452,13 @@ export default function BranchList({isActive, onFormModeChange}: Props) {
 								<Box marginLeft={3}>
 									<Text color="red">[d]删除 </Text>
 									<Text dimColor>[Esc]返回</Text>
+								</Box>
+							)}
+							{isSel && mode === 'deleteGitPrompt' && (
+								<Box marginLeft={3}>
+									<Text color="yellow">
+										是否同时删除本地 git 分支? [y]是 [n]仅删除记录 [Esc]取消
+									</Text>
 								</Box>
 							)}
 						</Box>

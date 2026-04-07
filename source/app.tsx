@@ -1,9 +1,10 @@
-import React, {useState, useCallback} from 'react';
-import {Box, Text, useInput} from 'ink';
+import React, { useState, useCallback } from 'react';
+import { Box, Text, useInput } from 'ink';
 import TodoList from './todo.js';
 import BranchList from './branch.js';
+import QuickActionList from './quick-action.js';
 
-type Tab = 'todo' | 'branch';
+type Tab = 'todo' | 'branch' | 'action';
 
 export default function App() {
 	const [activeTab, setActiveTab] = useState<Tab>('todo');
@@ -21,10 +22,14 @@ export default function App() {
 	useInput(
 		(_input, key) => {
 			if (key.tab) {
-				setActiveTab(previous => (previous === 'todo' ? 'branch' : 'todo'));
+				setActiveTab(previous => {
+					if (previous === 'todo') return 'branch';
+					if (previous === 'branch') return 'action';
+					return 'todo';
+				});
 			}
 		},
-		{isActive: !inFormMode},
+		{ isActive: !inFormMode },
 	);
 
 	return (
@@ -55,6 +60,15 @@ export default function App() {
 					{' '}
 					🌿 分支管理{' '}
 				</Text>
+				<Text> </Text>
+				<Text
+					bold={activeTab === 'action'}
+					color={activeTab === 'action' ? 'cyan' : 'gray'}
+					inverse={activeTab === 'action'}
+				>
+					{' '}
+					🚀 快捷操作{' '}
+				</Text>
 				<Text dimColor>{'    '}Tab 切换 Ctrl+C 退出</Text>
 			</Box>
 
@@ -70,6 +84,9 @@ export default function App() {
 				)}
 				{activeTab === 'branch' && (
 					<BranchList isActive onFormModeChange={handleBranchFormMode} />
+				)}
+				{activeTab === 'action' && (
+					<QuickActionList isActive onFormModeChange={setInFormMode} />
 				)}
 			</Box>
 		</Box>

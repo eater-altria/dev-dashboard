@@ -1,8 +1,10 @@
 {
-	"name": "dev-dashboard",
-	"version": "0.0.0",
+	"name": "@eater-altria/dev-dashboard",
+	"version": "1.0.0",
 	"license": "MIT",
-	"bin": "dist/cli.js",
+	"bin": {
+		"dev-dashboard": "dist/cli.js"
+	},
 	"type": "module",
 	"engines": {
 		"node": ">=16"
