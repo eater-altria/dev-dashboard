@@ -4,6 +4,7 @@ export type Todo = {
 	startDate: string; // MMDD format, e.g. "0321"
 	endDate: string; // MMDD format, e.g. "0324"
 	completed: boolean;
+	context?: string;
 };
 
 export type Branch = {

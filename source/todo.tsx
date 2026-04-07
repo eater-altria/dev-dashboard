@@ -1,10 +1,174 @@
-import React, {useState, useEffect} from 'react';
-import {Box, Text, useInput} from 'ink';
+import React, { useState, useEffect } from 'react';
+import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
-import {type Todo} from './types.js';
-import {loadData, saveData, generateId} from './store.js';
+import { type Todo } from './types.js';
+import { loadData, saveData, generateId } from './store.js';
 
-type TodoMode = 'list' | 'action' | 'add' | 'edit';
+type TodoMode = 'list' | 'action' | 'add' | 'edit' | 'context-view' | 'context-edit';
+
+function MultiLineInput({
+	value,
+	onChange,
+	onSubmit,
+	onCancel,
+	isActive,
+}: {
+	value: string;
+	onChange: (v: string) => void;
+	onSubmit: () => void;
+	onCancel: () => void;
+	isActive: boolean;
+}) {
+	const [cursor, setCursor] = useState({ row: 0, col: 0 });
+	const lines = value.split('\n');
+
+	useInput((input, key) => {
+		if (!isActive) return;
+
+		let { row, col } = cursor;
+
+		// Some emulators emit \n or CSI escape sequences for Shift+Enter natively, which appear in input
+		if (input === '\n' || input === '\r\n' || input === '\x1b[13;2u') {
+			const line = lines[row] || '';
+			lines[row] = line.slice(0, col);
+			lines.splice(row + 1, 0, line.slice(col));
+			onChange(lines.join('\n'));
+			setCursor({ row: row + 1, col: 0 });
+			return;
+		}
+
+		if (key.return) {
+			if (key.shift) {
+				// Triggered if the environment correctly flags shift+return
+				const line = lines[row] || '';
+				lines[row] = line.slice(0, col);
+				lines.splice(row + 1, 0, line.slice(col));
+				onChange(lines.join('\n'));
+				setCursor({ row: row + 1, col: 0 });
+			} else {
+				onSubmit();
+			}
+			return;
+		}
+
+		if (key.escape) {
+			onCancel();
+			return;
+		}
+
+		if (key.upArrow) {
+			row = key.meta ? Math.max(0, row - 3) : Math.max(0, row - 1);
+			col = Math.min(col, (lines[row] || '').length);
+			setCursor({ row, col });
+			return;
+		}
+		if (key.downArrow) {
+			row = key.meta ? Math.min(lines.length - 1, row + 3) : Math.min(lines.length - 1, row + 1);
+			col = Math.min(col, (lines[row] || '').length);
+			setCursor({ row, col });
+			return;
+		}
+		if (key.leftArrow) {
+			if (key.meta) {
+				if (col > 0) {
+					const leftPart = (lines[row] || '').slice(0, col).trimEnd();
+					const lastSpace = leftPart.lastIndexOf(' ');
+					col = lastSpace >= 0 ? lastSpace + 1 : 0;
+				} else if (row > 0) {
+					row--;
+					col = (lines[row] || '').length;
+				}
+			} else {
+				if (col > 0) {
+					col--;
+				} else if (row > 0) {
+					row--;
+					col = (lines[row] || '').length;
+				}
+			}
+			setCursor({ row, col });
+			return;
+		}
+		if (key.rightArrow) {
+			if (key.meta) {
+				const line = lines[row] || '';
+				if (col < line.length) {
+					const rightPart = line.slice(col);
+					const match = rightPart.match(/^\s*\S+/);
+					col += match ? match[0].length : rightPart.length;
+				} else if (row < lines.length - 1) {
+					row++;
+					col = 0;
+				}
+			} else {
+				if (col < (lines[row] || '').length) {
+					col++;
+				} else if (row < lines.length - 1) {
+					row++;
+					col = 0;
+				}
+			}
+			setCursor({ row, col });
+			return;
+		}
+		if (key.backspace || key.delete) {
+			if (col > 0) {
+				const line = lines[row] || '';
+				lines[row] = line.slice(0, col - 1) + line.slice(col);
+				col--;
+				onChange(lines.join('\n'));
+				setCursor({ row, col });
+			} else if (row > 0) {
+				const prevLen = (lines[row - 1] || '').length;
+				lines[row - 1] = (lines[row - 1] || '') + (lines[row] || '');
+				lines.splice(row, 1);
+				row--;
+				col = prevLen;
+				onChange(lines.join('\n'));
+				setCursor({ row, col });
+			}
+			return;
+		}
+
+		if (input) {
+			const line = lines[row] || '';
+			lines[row] = line.slice(0, col) + input + line.slice(col);
+			col += input.length;
+			onChange(lines.join('\n'));
+			setCursor({ row, col });
+		}
+	},
+		{ isActive },
+	);
+
+	return (
+		<Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
+			{lines.length === 0 && (
+				<Text>
+					<Text inverse> </Text>
+				</Text>
+			)}
+			{lines.map((l, r) => {
+				if (!isActive) {
+					return <Text key={r}>{l}</Text>;
+				}
+				if (r === cursor.row) {
+					const before = l.slice(0, cursor.col);
+					const at = l[cursor.col] || ' ';
+					const after = l.slice(cursor.col + 1);
+					return (
+						<Text key={r}>
+							{before}
+							<Text inverse>{at}</Text>
+							{after}
+						</Text>
+					);
+				}
+				return <Text key={r}>{l || ' '}</Text>;
+			})}
+		</Box>
+	);
+}
 
 type Props = {
 	isActive: boolean;
@@ -34,7 +198,7 @@ function getStatusColor(status: string): string {
 	return 'red';
 }
 
-export default function TodoList({isActive, onFormModeChange}: Props) {
+export default function TodoList({ isActive, onFormModeChange }: Props) {
 	const [todos, setTodos] = useState<Todo[]>([]);
 	const [mode, setMode] = useState<TodoMode>('list');
 	const [selectedIndex, setSelectedIndex] = useState(0);
@@ -43,6 +207,7 @@ export default function TodoList({isActive, onFormModeChange}: Props) {
 	const [formEnd, setFormEnd] = useState('');
 	const [formStep, setFormStep] = useState(0);
 	const [editingId, setEditingId] = useState<string | null>(null);
+	const [editContextValue, setEditContextValue] = useState('');
 
 	useEffect(() => {
 		const data = loadData();
@@ -50,7 +215,7 @@ export default function TodoList({isActive, onFormModeChange}: Props) {
 	}, []);
 
 	useEffect(() => {
-		onFormModeChange(mode === 'add' || mode === 'edit');
+		onFormModeChange(mode === 'add' || mode === 'edit' || mode === 'context-edit');
 	}, [mode]);
 
 	const persistTodos = (newTodos: Todo[]) => {
@@ -90,7 +255,7 @@ export default function TodoList({isActive, onFormModeChange}: Props) {
 				enterAddMode();
 			}
 		},
-		{isActive: isActive && mode === 'list'},
+		{ isActive: isActive && mode === 'list' },
 	);
 
 	// Action mode
@@ -102,10 +267,15 @@ export default function TodoList({isActive, onFormModeChange}: Props) {
 			if (input === 'c') {
 				persistTodos(
 					todos.map(t =>
-						t.id === todo.id ? {...t, completed: !t.completed} : t,
+						t.id === todo.id ? { ...t, completed: !t.completed } : t,
 					),
 				);
 				setMode('list');
+			} else if (input === 'v') {
+				setMode('context-view');
+			} else if (input === 'm') {
+				setEditContextValue(todo.context || '');
+				setMode('context-edit');
 			} else if (input === 'd') {
 				const newTodos = todos.filter(t => t.id !== todo.id);
 				persistTodos(newTodos);
@@ -117,7 +287,17 @@ export default function TodoList({isActive, onFormModeChange}: Props) {
 				setMode('list');
 			}
 		},
-		{isActive: isActive && mode === 'action'},
+		{ isActive: isActive && mode === 'action' },
+	);
+
+	// Context view escape
+	useInput(
+		(_input, key) => {
+			if (key.escape) {
+				setMode('action');
+			}
+		},
+		{ isActive: isActive && mode === 'context-view' },
 	);
 
 	// Form escape
@@ -128,8 +308,17 @@ export default function TodoList({isActive, onFormModeChange}: Props) {
 				setMode('list');
 			}
 		},
-		{isActive: isActive && (mode === 'add' || mode === 'edit')},
+		{ isActive: isActive && (mode === 'add' || mode === 'edit') },
 	);
+
+	const handleSaveContext = (id: string) => {
+		persistTodos(
+			todos.map(t =>
+				t.id === id ? { ...t, context: editContextValue } : t,
+			),
+		);
+		setMode('action');
+	};
 
 	const handleFormSubmit = (value: string) => {
 		if (formStep === 0) {
@@ -152,11 +341,11 @@ export default function TodoList({isActive, onFormModeChange}: Props) {
 					todos.map(t =>
 						t.id === editingId
 							? {
-									...t,
-									name: formName.trim(),
-									startDate: formStart,
-									endDate: formEnd,
-							  }
+								...t,
+								name: formName.trim(),
+								startDate: formStart,
+								endDate: formEnd,
+							}
 							: t,
 					),
 				);
@@ -284,10 +473,36 @@ export default function TodoList({isActive, onFormModeChange}: Props) {
 							</Box>
 							{isSel && mode === 'action' && (
 								<Box marginLeft={3}>
+									<Text color="cyan">[v]查看上下文 </Text>
+									<Text color="magenta">[m]修改上下文 </Text>
 									<Text color="green">[c]完成 </Text>
 									<Text color="red">[d]删除 </Text>
 									<Text color="yellow">[e]修改 </Text>
 									<Text dimColor>[Esc]返回</Text>
+								</Box>
+							)}
+							{isSel && mode === 'context-view' && (
+								<Box marginLeft={3} flexDirection="column">
+									<Box borderStyle="round" borderColor="cyan" paddingX={1}>
+										<Text>{todo.context || '无上下文信息'}</Text>
+									</Box>
+									<Box>
+										<Text dimColor>[Esc]返回</Text>
+									</Box>
+								</Box>
+							)}
+							{isSel && mode === 'context-edit' && (
+								<Box marginLeft={3} flexDirection="column">
+									<MultiLineInput
+										value={editContextValue}
+										onChange={setEditContextValue}
+										onSubmit={() => handleSaveContext(todo.id)}
+										onCancel={() => setMode('action')}
+										isActive={mode === 'context-edit'}
+									/>
+									<Box marginTop={1}>
+										<Text dimColor>Shift+Enter 换行 / Enter 保存 / Esc 取消</Text>
+									</Box>
 								</Box>
 							)}
 						</Box>

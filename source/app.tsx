@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text, useInput, useApp } from 'ink';
 import TodoList from './todo.js';
 import BranchList from './branch.js';
 import QuickActionList from './quick-action.js';
@@ -18,9 +18,17 @@ export default function App() {
 		setInFormMode(inForm);
 	}, []);
 
+	const { exit } = useApp();
+
 	// Global key handler — only active when NOT in a form
 	useInput(
 		(_input, key) => {
+			if (key.escape) {
+				exit();
+				setTimeout(() => process.exit(0), 50);
+				return;
+			}
+
 			if (key.tab) {
 				setActiveTab(previous => {
 					if (previous === 'todo') return 'branch';
@@ -69,7 +77,7 @@ export default function App() {
 					{' '}
 					🚀 快捷操作{' '}
 				</Text>
-				<Text dimColor>{'    '}Tab 切换 Ctrl+C 退出</Text>
+				<Text dimColor>{'    '}Tab 切换 ESC 退出</Text>
 			</Box>
 
 			{/* Content */}
