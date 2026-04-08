@@ -1,10 +1,11 @@
-import React, { useState, useCallback } from 'react';
-import { Box, Text, useInput, useApp } from 'ink';
+import React, {useState, useCallback} from 'react';
+import {Box, Text, useInput, useApp} from 'ink';
 import TodoList from './todo.js';
 import BranchList from './branch.js';
 import QuickActionList from './quick-action.js';
+import PerformanceMonitor from './performance-monitor.js';
 
-type Tab = 'todo' | 'branch' | 'action';
+type Tab = 'todo' | 'branch' | 'action' | 'perf';
 
 export default function App() {
 	const [activeTab, setActiveTab] = useState<Tab>('todo');
@@ -18,7 +19,7 @@ export default function App() {
 		setInFormMode(inForm);
 	}, []);
 
-	const { exit } = useApp();
+	const {exit} = useApp();
 
 	// Global key handler — only active when NOT in a form
 	useInput(
@@ -33,11 +34,12 @@ export default function App() {
 				setActiveTab(previous => {
 					if (previous === 'todo') return 'branch';
 					if (previous === 'branch') return 'action';
+					if (previous === 'action') return 'perf';
 					return 'todo';
 				});
 			}
 		},
-		{ isActive: !inFormMode },
+		{isActive: !inFormMode},
 	);
 
 	return (
@@ -77,6 +79,15 @@ export default function App() {
 					{' '}
 					🚀 快捷操作{' '}
 				</Text>
+				<Text> </Text>
+				<Text
+					bold={activeTab === 'perf'}
+					color={activeTab === 'perf' ? 'cyan' : 'gray'}
+					inverse={activeTab === 'perf'}
+				>
+					{' '}
+					📊 性能监控{' '}
+				</Text>
 				<Text dimColor>{'    '}Tab 切换 ESC 退出</Text>
 			</Box>
 
@@ -96,6 +107,7 @@ export default function App() {
 				{activeTab === 'action' && (
 					<QuickActionList isActive onFormModeChange={setInFormMode} />
 				)}
+				{activeTab === 'perf' && <PerformanceMonitor isActive />}
 			</Box>
 		</Box>
 	);

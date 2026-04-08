@@ -9,4 +9,5 @@ test('renders app with todo tab', t => {
 
 	t.truthy(frame?.includes('待办列表'));
 	t.truthy(frame?.includes('分支管理'));
+	t.truthy(frame?.includes('性能监控'));
 });
