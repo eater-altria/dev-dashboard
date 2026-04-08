@@ -14,9 +14,16 @@ export type Branch = {
 	description: string;
 };
 
+export type RssFeed = {
+	id: string;
+	name: string;
+	url: string;
+};
+
 export type StoreData = {
 	todos: Todo[];
 	branches: Branch[];
 	projectDir?: string;
 	globalCommands?: string[];
+	rssFeeds?: RssFeed[];
 };

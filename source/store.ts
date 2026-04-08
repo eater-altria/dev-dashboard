@@ -12,9 +12,14 @@ export function loadData(): StoreData {
 		if (!data.globalCommands) {
 			data.globalCommands = [];
 		}
+
+		if (!data.rssFeeds) {
+			data.rssFeeds = [];
+		}
+
 		return data;
 	} catch {
-		return {todos: [], branches: [], globalCommands: []};
+		return {todos: [], branches: [], globalCommands: [], rssFeeds: []};
 	}
 }
 

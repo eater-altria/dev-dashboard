@@ -4,8 +4,9 @@ import TodoList from './todo.js';
 import BranchList from './branch.js';
 import QuickActionList from './quick-action.js';
 import PerformanceMonitor from './performance-monitor.js';
+import RssFeedTab from './rss-feed.js';
 
-type Tab = 'todo' | 'branch' | 'action' | 'perf';
+type Tab = 'todo' | 'branch' | 'action' | 'perf' | 'rss';
 
 export default function App() {
 	const [activeTab, setActiveTab] = useState<Tab>('todo');
@@ -16,6 +17,10 @@ export default function App() {
 	}, []);
 
 	const handleBranchFormMode = useCallback((inForm: boolean) => {
+		setInFormMode(inForm);
+	}, []);
+
+	const handleRssFormMode = useCallback((inForm: boolean) => {
 		setInFormMode(inForm);
 	}, []);
 
@@ -35,6 +40,7 @@ export default function App() {
 					if (previous === 'todo') return 'branch';
 					if (previous === 'branch') return 'action';
 					if (previous === 'action') return 'perf';
+					if (previous === 'perf') return 'rss';
 					return 'todo';
 				});
 			}
@@ -88,6 +94,15 @@ export default function App() {
 					{' '}
 					📊 性能监控{' '}
 				</Text>
+				<Text> </Text>
+				<Text
+					bold={activeTab === 'rss'}
+					color={activeTab === 'rss' ? 'cyan' : 'gray'}
+					inverse={activeTab === 'rss'}
+				>
+					{' '}
+					📡 RSS 订阅{' '}
+				</Text>
 				<Text dimColor>{'    '}Tab 切换 ESC 退出</Text>
 			</Box>
 
@@ -108,6 +123,9 @@ export default function App() {
 					<QuickActionList isActive onFormModeChange={setInFormMode} />
 				)}
 				{activeTab === 'perf' && <PerformanceMonitor isActive />}
+				{activeTab === 'rss' && (
+					<RssFeedTab isActive onFormModeChange={handleRssFormMode} />
+				)}
 			</Box>
 		</Box>
 	);

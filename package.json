@@ -1,6 +1,6 @@
 {
 	"name": "@eater-altria/dev-dashboard",
-	"version": "2.0.0",
+	"version": "3.0.0",
 	"license": "MIT",
 	"bin": {
 		"dev-dashboard": "dist/cli.js"
@@ -22,6 +22,7 @@
 		"ink-text-input": "^6.0.0",
 		"meow": "^11.0.0",
 		"react": "^19.2.4",
+		"rss-parser": "^3.13.0",
 		"systeminformation": "^5.31.5"
 	},
 	"devDependencies": {
