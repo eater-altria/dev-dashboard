@@ -20,10 +20,17 @@ export type RssFeed = {
 	url: string;
 };
 
+export type AmapWeatherConfig = {
+	key: string;
+	cityName: string;
+	adcode: string;
+};
+
 export type StoreData = {
 	todos: Todo[];
 	branches: Branch[];
 	projectDir?: string;
 	globalCommands?: string[];
 	rssFeeds?: RssFeed[];
+	amapWeather?: AmapWeatherConfig;
 };

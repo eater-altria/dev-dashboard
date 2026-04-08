@@ -11,4 +11,5 @@ test('renders app with todo tab', t => {
 	t.truthy(frame?.includes('分支管理'));
 	t.truthy(frame?.includes('性能监控'));
 	t.truthy(frame?.includes('RSS 订阅'));
+	t.truthy(frame?.includes('天气日历'));
 });

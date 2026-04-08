@@ -5,11 +5,12 @@ import BranchList from './branch.js';
 import QuickActionList from './quick-action.js';
 import PerformanceMonitor from './performance-monitor.js';
 import RssFeedTab from './rss-feed.js';
+import WeatherCalendarTab from './weather-calendar.js';
 
-type Tab = 'todo' | 'branch' | 'action' | 'perf' | 'rss';
+type Tab = 'weather' | 'todo' | 'branch' | 'action' | 'perf' | 'rss';
 
 export default function App() {
-	const [activeTab, setActiveTab] = useState<Tab>('todo');
+	const [activeTab, setActiveTab] = useState<Tab>('weather');
 	const [inFormMode, setInFormMode] = useState(false);
 
 	const handleTodoFormMode = useCallback((inForm: boolean) => {
@@ -21,6 +22,10 @@ export default function App() {
 	}, []);
 
 	const handleRssFormMode = useCallback((inForm: boolean) => {
+		setInFormMode(inForm);
+	}, []);
+
+	const handleWeatherFormMode = useCallback((inForm: boolean) => {
 		setInFormMode(inForm);
 	}, []);
 
@@ -37,11 +42,12 @@ export default function App() {
 
 			if (key.tab) {
 				setActiveTab(previous => {
+					if (previous === 'weather') return 'todo';
 					if (previous === 'todo') return 'branch';
 					if (previous === 'branch') return 'action';
 					if (previous === 'action') return 'perf';
 					if (previous === 'perf') return 'rss';
-					return 'todo';
+					return 'weather';
 				});
 			}
 		},
@@ -59,6 +65,15 @@ export default function App() {
 
 			{/* Tab bar */}
 			<Box paddingX={1}>
+				<Text
+					bold={activeTab === 'weather'}
+					color={activeTab === 'weather' ? 'cyan' : 'gray'}
+					inverse={activeTab === 'weather'}
+				>
+					{' '}
+					🌤️ 天气日历{' '}
+				</Text>
+				<Text> </Text>
 				<Text
 					bold={activeTab === 'todo'}
 					color={activeTab === 'todo' ? 'cyan' : 'gray'}
@@ -125,6 +140,12 @@ export default function App() {
 				{activeTab === 'perf' && <PerformanceMonitor isActive />}
 				{activeTab === 'rss' && (
 					<RssFeedTab isActive onFormModeChange={handleRssFormMode} />
+				)}
+				{activeTab === 'weather' && (
+					<WeatherCalendarTab
+						isActive
+						onFormModeChange={handleWeatherFormMode}
+					/>
 				)}
 			</Box>
 		</Box>
