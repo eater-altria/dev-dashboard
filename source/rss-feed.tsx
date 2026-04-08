@@ -55,10 +55,11 @@ export default function RssFeedTab({isActive, onFormModeChange}: Props) {
 		mode === 'add-url' ||
 		mode === 'edit-name' ||
 		mode === 'edit-url';
+	const shouldCaptureGlobalKeys = mode !== 'list';
 
 	useEffect(() => {
-		onFormModeChange(isFormMode);
-	}, [isFormMode, onFormModeChange]);
+		onFormModeChange(shouldCaptureGlobalKeys);
+	}, [onFormModeChange, shouldCaptureGlobalKeys]);
 
 	const persistFeeds = useCallback(
 		(newFeeds: RssFeed[]) => {
