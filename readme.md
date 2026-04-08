@@ -18,6 +18,20 @@
 > 
 > **🏆 为了保障本系统的各种高级快捷键组合体验达到最佳状态，强烈推荐使用具备该协议支持能力的 [iTerm2](https://iterm2.com/) 终端。**
 
+## 📸 界面预览
+
+### 待办列表
+
+![待办列表](assets/todo-list.png)
+
+### 分支管理
+
+![分支管理](assets/branch-management.png)
+
+### 快捷操作
+
+![快捷操作](assets/quick-actions.png)
+
 ## 📦 安装
 
 你可以通过 npm 全局安装它：
