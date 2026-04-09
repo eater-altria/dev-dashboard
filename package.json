@@ -1,6 +1,6 @@
 {
 	"name": "@eater-altria/dev-dashboard",
-	"version": "4.1.1",
+	"version": "4.2.0",
 	"license": "MIT",
 	"bin": {
 		"dev-dashboard": "dist/cli.js"
@@ -21,6 +21,7 @@
 		"ink": "^6.8.0",
 		"ink-text-input": "^6.0.0",
 		"lunar-typescript": "^1.8.6",
+		"macos-temperature-sensor": "^1.0.4",
 		"meow": "^11.0.0",
 		"react": "^19.2.4",
 		"rss-parser": "^3.13.0",
