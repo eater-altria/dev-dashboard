@@ -6,8 +6,9 @@ import QuickActionList from './quick-action.js';
 import PerformanceMonitor from './performance-monitor.js';
 import RssFeedTab from './rss-feed.js';
 import WeatherCalendarTab from './weather-calendar.js';
+import AiQuotaTab from './ai-quota.js';
 
-type Tab = 'weather' | 'todo' | 'branch' | 'action' | 'perf' | 'rss';
+type Tab = 'weather' | 'todo' | 'branch' | 'action' | 'perf' | 'rss' | 'ai_quota';
 
 export default function App() {
 	const [activeTab, setActiveTab] = useState<Tab>('weather');
@@ -29,6 +30,10 @@ export default function App() {
 		setInFormMode(inForm);
 	}, []);
 
+	const handleAiQuotaFormMode = useCallback((inForm: boolean) => {
+		setInFormMode(inForm);
+	}, []);
+
 	const {exit} = useApp();
 
 	// Global key handler — only active when NOT in a form
@@ -47,6 +52,7 @@ export default function App() {
 					if (previous === 'branch') return 'action';
 					if (previous === 'action') return 'perf';
 					if (previous === 'perf') return 'rss';
+					if (previous === 'rss') return 'ai_quota';
 					return 'weather';
 				});
 			}
@@ -118,6 +124,15 @@ export default function App() {
 					{' '}
 					📡 RSS 订阅{' '}
 				</Text>
+				<Text> </Text>
+				<Text
+					bold={activeTab === 'ai_quota'}
+					color={activeTab === 'ai_quota' ? 'cyan' : 'gray'}
+					inverse={activeTab === 'ai_quota'}
+				>
+					{' '}
+					🤖 AI 配额{' '}
+				</Text>
 				<Text dimColor>{'    '}Tab 切换 ESC 退出</Text>
 			</Box>
 
@@ -146,6 +161,9 @@ export default function App() {
 						isActive
 						onFormModeChange={handleWeatherFormMode}
 					/>
+				)}
+				{activeTab === 'ai_quota' && (
+					<AiQuotaTab isActive onFormModeChange={handleAiQuotaFormMode} />
 				)}
 			</Box>
 		</Box>
