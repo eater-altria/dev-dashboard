@@ -308,79 +308,152 @@ async function fetchCursorQuotas(): Promise<ProviderInfo | null> {
 	}
 }
 
+async function detectSocksProxy(): Promise<string | null> {
+	try {
+		const { stdout } = await execAsync('scutil --proxy 2>/dev/null').catch(() => ({ stdout: '' }));
+		if (!stdout) return null;
+		const enableMatch = stdout.match(/SOCKSEnable\s*:\s*(\d+)/);
+		if (!enableMatch || enableMatch[1] !== '1') return null;
+		const hostMatch = stdout.match(/SOCKSProxy\s*:\s*(\S+)/);
+		const portMatch = stdout.match(/SOCKSPort\s*:\s*(\d+)/);
+		if (hostMatch && portMatch) {
+			return `${hostMatch[1]}:${portMatch[1]}`;
+		}
+		return null;
+	} catch {
+		return null;
+	}
+}
+
 async function fetchCodexQuotas(): Promise<ProviderInfo | null> {
-    try {
-        const codexPath = path.join(os.homedir(), '.codex', 'sessions');
-        const now = new Date();
-        const todayDir = path.join(
-            codexPath,
-            String(now.getFullYear()),
-            String(now.getMonth() + 1).padStart(2, '0'),
-            String(now.getDate()).padStart(2, '0')
-        );
+	try {
+		const models: ModelQuota[] = [];
+		let codexAccountEmail = 'Codex Local';
 
-        if (!fs.existsSync(todayDir)) return null;
+		try {
+			const authPath = path.join(os.homedir(), '.codex', 'auth.json');
+			if (fs.existsSync(authPath)) {
+				const authData = JSON.parse(fs.readFileSync(authPath, 'utf-8'));
+				if (authData?.tokens?.access_token) {
+					const accessToken = authData.tokens.access_token;
+					const accountId = authData.tokens.account_id || '';
+					
+					// Decode email from JWT if possible
+					try {
+						const parts = authData.tokens.id_token.split('.');
+						if (parts.length >= 2) {
+							let payload = parts[1]!.replace(/-/g, '+').replace(/_/g, '/');
+							while (payload.length % 4) payload += '=';
+							const decoded = JSON.parse(Buffer.from(payload, 'base64').toString('utf-8'));
+							if (decoded.email) codexAccountEmail = decoded.email;
+						}
+					} catch (e) {}
+					
+					// Detect system SOCKS proxy for environments where chatgpt.com is not directly reachable
+					const socksProxy = await detectSocksProxy();
+					const proxyArg = socksProxy ? `--socks5-hostname ${socksProxy}` : '';
+					
+					const curlHeaders = [
+						`-H "Authorization: Bearer ${accessToken}"`,
+						`-H "Accept: application/json"`,
+						`-H "User-Agent: Mozilla/5.0"`,
+						...(accountId ? [`-H "ChatGPT-Account-Id: ${accountId}"`] : [])
+					].join(' ');
+					
+					const { stdout: usageText } = await execAsync(
+						`curl -s --max-time 8 ${proxyArg} ${curlHeaders} "https://chatgpt.com/backend-api/wham/usage"`,
+						{ encoding: 'utf-8' }
+					).catch(() => ({ stdout: '{}' }));
 
-        const files = fs.readdirSync(todayDir).filter(f => f.startsWith('rollout-') && f.endsWith('.jsonl'));
-        
-        const usageByModel: Record<string, {input: number, output: number}> = {};
+					const usageData = JSON.parse(usageText || '{}');
+					const planType = usageData.plan_type || 'Plus';
+					
+					// Primary rate limit window (5-hour)
+					const primaryWindow = usageData?.rate_limit?.primary_window;
+					if (primaryWindow && primaryWindow.used_percent !== undefined) {
+						let resetTimeStr: string | undefined = undefined;
+						if (primaryWindow.reset_at) {
+							resetTimeStr = new Date(primaryWindow.reset_at * 1000).toISOString();
+						} else if (primaryWindow.reset_after_seconds !== undefined) {
+							resetTimeStr = new Date(Date.now() + primaryWindow.reset_after_seconds * 1000).toISOString();
+						}
+						
+						const windowHours = primaryWindow.limit_window_seconds
+							? Math.round(primaryWindow.limit_window_seconds / 3600)
+							: 5;
+						
+						models.push({
+							id: 'codex-primary',
+							displayName: `Codex 额度 (${planType}, ${windowHours}h窗口)`,
+							model: 'codex',
+							quotaInfo: {
+								remainingFraction: Math.max(0, 1 - primaryWindow.used_percent / 100),
+								resetTime: resetTimeStr
+							}
+						});
+					}
 
-        for (const file of files) {
-            const filePath = path.join(todayDir, file);
-            try {
-                const content = fs.readFileSync(filePath, 'utf-8');
-                const lines = content.split('\n');
-                let currentModel = 'unknown';
-                let input = 0;
-                let output = 0;
+					// Secondary rate limit window (weekly)
+					const secondaryWindow = usageData?.rate_limit?.secondary_window;
+					if (secondaryWindow && secondaryWindow.used_percent !== undefined) {
+						let resetTimeStr: string | undefined = undefined;
+						if (secondaryWindow.reset_at) {
+							resetTimeStr = new Date(secondaryWindow.reset_at * 1000).toISOString();
+						} else if (secondaryWindow.reset_after_seconds !== undefined) {
+							resetTimeStr = new Date(Date.now() + secondaryWindow.reset_after_seconds * 1000).toISOString();
+						}
+						
+						const windowDays = secondaryWindow.limit_window_seconds
+							? Math.round(secondaryWindow.limit_window_seconds / 86400)
+							: 7;
+						
+						models.push({
+							id: 'codex-secondary',
+							displayName: `Codex 额度 (${planType}, ${windowDays}d窗口)`,
+							model: 'codex',
+							quotaInfo: {
+								remainingFraction: Math.max(0, 1 - secondaryWindow.used_percent / 100),
+								resetTime: resetTimeStr
+							}
+						});
+					}
 
-                for (const line of lines) {
-                    if (!line.trim()) continue;
-                    try {
-                        const entry = JSON.parse(line);
-                        if (entry.type === 'turn_context') {
-                            if (entry.payload?.model) currentModel = entry.payload.model;
-                        } else if (entry.type === 'event_msg' && entry.payload?.type === 'token_count') {
-                            const usage = entry.payload.info?.total_token_usage;
-                            if (usage) {
-                                input = usage.input_tokens !== undefined ? usage.input_tokens : input;
-                                output = usage.output_tokens !== undefined ? usage.output_tokens : output;
-                            }
-                        }
-                    } catch (e) {}
-                }
+					// Code review rate limit
+					const codeReviewWindow = usageData?.code_review_rate_limit?.primary_window;
+					if (codeReviewWindow && codeReviewWindow.used_percent !== undefined) {
+						let resetTimeStr: string | undefined = undefined;
+						if (codeReviewWindow.reset_at) {
+							resetTimeStr = new Date(codeReviewWindow.reset_at * 1000).toISOString();
+						} else if (codeReviewWindow.reset_after_seconds !== undefined) {
+							resetTimeStr = new Date(Date.now() + codeReviewWindow.reset_after_seconds * 1000).toISOString();
+						}
+						
+						models.push({
+							id: 'codex-code-review',
+							displayName: `Code Review 额度 (${planType})`,
+							model: 'codex-code-review',
+							quotaInfo: {
+								remainingFraction: Math.max(0, 1 - codeReviewWindow.used_percent / 100),
+								resetTime: resetTimeStr
+							}
+						});
+					}
+				}
+			}
+		} catch(e) {}
 
-                if (input > 0 || output > 0) {
-                    if (!usageByModel[currentModel]) usageByModel[currentModel] = { input: 0, output: 0 };
-                    usageByModel[currentModel]!.input += input;
-                    usageByModel[currentModel]!.output += output;
-                }
-            } catch (e) {}
-        }
-
-        if (Object.keys(usageByModel).length === 0) return null;
-
-        const models: ModelQuota[] = Object.entries(usageByModel).map(([model, usage]) => ({
-            id: model,
-            displayName: model,
-            model: model,
-            usageInfo: {
-                inputTokens: usage.input,
-                outputTokens: usage.output,
-                totalTokens: usage.input + usage.output,
-            }
-        }));
+		if (models.length === 0) return null;
 
 		models.sort((a, b) => (a.displayName || a.id).localeCompare(b.displayName || b.id));
 
-        return {
-            id: 'codex',
-            name: 'OpenAI Codex',
-            accounts: [{ email: 'Codex CLI Local', models }]
-        };
-    } catch(e) {
-        return null;
-    }
+		return {
+			id: 'codex',
+			name: 'OpenAI Codex',
+			accounts: [{ email: codexAccountEmail, models }]
+		};
+	} catch(e) {
+		return null;
+	}
 }
 
 export default function AiQuotaTab({ isActive, onFormModeChange }: Props) {
