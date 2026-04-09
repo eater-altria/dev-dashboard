@@ -308,22 +308,8 @@ async function fetchCursorQuotas(): Promise<ProviderInfo | null> {
 	}
 }
 
-async function detectSocksProxy(): Promise<string | null> {
-	try {
-		const { stdout } = await execAsync('scutil --proxy 2>/dev/null').catch(() => ({ stdout: '' }));
-		if (!stdout) return null;
-		const enableMatch = stdout.match(/SOCKSEnable\s*:\s*(\d+)/);
-		if (!enableMatch || enableMatch[1] !== '1') return null;
-		const hostMatch = stdout.match(/SOCKSProxy\s*:\s*(\S+)/);
-		const portMatch = stdout.match(/SOCKSPort\s*:\s*(\d+)/);
-		if (hostMatch && portMatch) {
-			return `${hostMatch[1]}:${portMatch[1]}`;
-		}
-		return null;
-	} catch {
-		return null;
-	}
-}
+
+
 
 async function fetchCodexQuotas(): Promise<ProviderInfo | null> {
 	try {
@@ -349,21 +335,27 @@ async function fetchCodexQuotas(): Promise<ProviderInfo | null> {
 						}
 					} catch (e) {}
 					
-					// Detect system SOCKS proxy for environments where chatgpt.com is not directly reachable
-					const socksProxy = await detectSocksProxy();
-					const proxyArg = socksProxy ? `--socks5-hostname ${socksProxy}` : '';
-					
-					const curlHeaders = [
-						`-H "Authorization: Bearer ${accessToken}"`,
-						`-H "Accept: application/json"`,
-						`-H "User-Agent: Mozilla/5.0"`,
-						...(accountId ? [`-H "ChatGPT-Account-Id: ${accountId}"`] : [])
-					].join(' ');
-					
-					const { stdout: usageText } = await execAsync(
-						`curl -s --max-time 8 ${proxyArg} ${curlHeaders} "https://chatgpt.com/backend-api/wham/usage"`,
-						{ encoding: 'utf-8' }
-					).catch(() => ({ stdout: '{}' }));
+					const usageText = await new Promise<string>((resolve) => {
+						const headers: Record<string, string> = {
+							'Authorization': `Bearer ${accessToken}`,
+							'Accept': 'application/json',
+							'User-Agent': 'Mozilla/5.0',
+						};
+						if (accountId) headers['ChatGPT-Account-Id'] = accountId;
+
+						const req = https.request('https://chatgpt.com/backend-api/wham/usage', {
+							method: 'GET',
+							headers,
+							timeout: 8000,
+						}, (res) => {
+							let body = '';
+							res.on('data', (c: any) => { body += c; });
+							res.on('end', () => resolve(res.statusCode === 200 ? body : '{}'));
+						});
+						req.on('error', () => resolve('{}'));
+						req.on('timeout', () => { req.destroy(); resolve('{}'); });
+						req.end();
+					});
 
 					const usageData = JSON.parse(usageText || '{}');
 					const planType = usageData.plan_type || 'Plus';
