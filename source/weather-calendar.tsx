@@ -1,4 +1,4 @@
-import https from 'node:https';
+import axios from 'axios';
 import React, {useState, useEffect, useCallback} from 'react';
 import {Box, Text, useInput} from 'ink';
 import TextInput from 'ink-text-input';
@@ -146,24 +146,8 @@ function weatherArt(weather: string): string[] {
 }
 
 async function httpGetJson(url: string): Promise<unknown> {
-	return new Promise((resolve, reject) => {
-		https
-			.get(url, response => {
-				let body = '';
-				response.setEncoding('utf8');
-				response.on('data', (chunk: string) => {
-					body += chunk;
-				});
-				response.on('end', () => {
-					try {
-						resolve(JSON.parse(body));
-					} catch (error: unknown) {
-						reject(error instanceof Error ? error : new Error(String(error)));
-					}
-				});
-			})
-			.on('error', reject);
-	});
+	const response = await axios.get(url);
+	return response.data;
 }
 
 type GeoResponse = {

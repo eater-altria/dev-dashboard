@@ -3,7 +3,7 @@ import { Box, Text, useInput } from 'ink';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import http from 'node:http';
-import https from 'node:https';
+import axios from 'axios';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -231,22 +231,22 @@ async function fetchCursorQuotas(): Promise<ProviderInfo | null> {
 		// Construct the proper WorkosCursorSessionToken: userId%3A%3AaccessToken
 		const sessionToken = `${userId}%3A%3A${accessToken}`;
 
-		// Fetch usage summary via GET
-		const summaryText = await new Promise<string>((resolve) => {
-			const url = new URL('https://cursor.com/api/usage-summary');
-			const req = https.request(url, {
-				method: 'GET',
+		let summaryText = '{}';
+		let loadError: string | null = null;
+		try {
+			const res = await axios.get('https://cursor.com/api/usage-summary', {
 				headers: { 'Cookie': `WorkosCursorSessionToken=${sessionToken}`, 'User-Agent': 'Mozilla/5.0' },
 				timeout: 5000
-			}, (res: any) => {
-				let body = '';
-				res.on('data', (c: any) => { body += c; });
-				res.on('end', () => resolve(res.statusCode === 200 ? body : '{}'));
 			});
-			req.on('error', () => resolve('{}'));
-			req.on('timeout', () => { req.destroy(); resolve('{}'); });
-			req.end();
-		});
+			if (res.status === 200) {
+				summaryText = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+			} else {
+				loadError = `HTTP ${res.status}: ${res.statusText}`;
+			}
+		} catch (e: any) {
+			summaryText = '{}';
+			loadError = e.message || String(e);
+		}
 
 		try {
 			const summaryData = JSON.parse(summaryText);
@@ -284,7 +284,7 @@ async function fetchCursorQuotas(): Promise<ProviderInfo | null> {
 				return {
 					id: 'cursor',
 					name: 'Cursor Editor',
-					accounts: [{ email: cachedEmail || 'No Usage', models: [] }]
+					accounts: [{ email: loadError ? `获取额度失败: ${loadError}` : (cachedEmail || 'No Usage'), models: [] }]
 				};
 			}
 
@@ -315,6 +315,7 @@ async function fetchCodexQuotas(): Promise<ProviderInfo | null> {
 	try {
 		const models: ModelQuota[] = [];
 		let codexAccountEmail = 'Codex Local';
+		let loadError: string | null = null;
 
 		try {
 			const authPath = path.join(os.homedir(), '.codex', 'auth.json');
@@ -335,7 +336,8 @@ async function fetchCodexQuotas(): Promise<ProviderInfo | null> {
 						}
 					} catch (e) {}
 					
-					const usageText = await new Promise<string>((resolve) => {
+					let usageText = '{}';
+					try {
 						const headers: Record<string, string> = {
 							'Authorization': `Bearer ${accessToken}`,
 							'Accept': 'application/json',
@@ -343,19 +345,19 @@ async function fetchCodexQuotas(): Promise<ProviderInfo | null> {
 						};
 						if (accountId) headers['ChatGPT-Account-Id'] = accountId;
 
-						const req = https.request('https://chatgpt.com/backend-api/wham/usage', {
-							method: 'GET',
+						const res = await axios.get('https://chatgpt.com/backend-api/wham/usage', {
 							headers,
-							timeout: 8000,
-						}, (res) => {
-							let body = '';
-							res.on('data', (c: any) => { body += c; });
-							res.on('end', () => resolve(res.statusCode === 200 ? body : '{}'));
+							timeout: 8000
 						});
-						req.on('error', () => resolve('{}'));
-						req.on('timeout', () => { req.destroy(); resolve('{}'); });
-						req.end();
-					});
+						if (res.status === 200) {
+							usageText = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+						} else {
+							loadError = `HTTP ${res.status}: ${res.statusText}`;
+						}
+					} catch (e: any) {
+						usageText = '{}';
+						loadError = e.message || String(e);
+					}
 
 					const usageData = JSON.parse(usageText || '{}');
 					const planType = usageData.plan_type || 'Plus';
@@ -434,7 +436,16 @@ async function fetchCodexQuotas(): Promise<ProviderInfo | null> {
 			}
 		} catch(e) {}
 
-		if (models.length === 0) return null;
+		if (models.length === 0) {
+			if (loadError) {
+				return {
+					id: 'codex',
+					name: 'OpenAI Codex',
+					accounts: [{ email: `获取额度失败: ${loadError}`, models: [] }]
+				};
+			}
+			return null;
+		}
 
 		models.sort((a, b) => (a.displayName || a.id).localeCompare(b.displayName || b.id));
 
