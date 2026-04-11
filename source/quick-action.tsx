@@ -155,7 +155,7 @@ export default function QuickActionList({isActive, onFormModeChange}: Props) {
 	}
 
 	// Render List View
-	const VISIBLE_COUNT = 10;
+	const VISIBLE_COUNT = 14;
 
 	// Better bounds for scrolling
 	const [vStart, setVStart] = useState(0);

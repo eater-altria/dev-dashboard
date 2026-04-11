@@ -211,7 +211,7 @@ export default function TodoList({ isActive, onFormModeChange }: Props) {
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [editContextValue, setEditContextValue] = useState('');
 
-	const VISIBLE_COUNT = 8;
+	const VISIBLE_COUNT = 14;
 	const [visibleStart, setVisibleStart] = useState(0);
 
 	useEffect(() => {
@@ -344,7 +344,7 @@ export default function TodoList({ isActive, onFormModeChange }: Props) {
 				const sd = parseInt(formStart.slice(2, 4), 10);
 				const em = parseInt(formEnd.slice(0, 2), 10);
 				const ed = parseInt(formEnd.slice(2, 4), 10);
-				
+
 				const startYear = cy;
 				const endYear = em < sm ? cy + 1 : cy;
 

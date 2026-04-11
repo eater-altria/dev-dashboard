@@ -44,7 +44,7 @@ export default function RssFeedTab({isActive, onFormModeChange}: Props) {
 	const [articleLoading, setArticleLoading] = useState(false);
 	const [articleError, setArticleError] = useState('');
 
-	const VISIBLE_COUNT = 8;
+	const VISIBLE_COUNT = 14;
 	const [visibleStart, setVisibleStart] = useState(0);
 
 	useEffect(() => {

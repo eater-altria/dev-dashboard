@@ -1,11 +1,11 @@
-import React, {useState, useEffect} from 'react';
-import {Box, Text, useInput} from 'ink';
+import React, { useState, useEffect } from 'react';
+import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
-import {execSync} from 'node:child_process';
+import { execSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
-import {type Branch, type StoreData} from './types.js';
-import {loadData, saveData, generateId, getProjectRepos} from './store.js';
+import { type Branch, type StoreData } from './types.js';
+import { loadData, saveData, generateId, getProjectRepos } from './store.js';
 
 type BranchMode = 'list' | 'action' | 'add' | 'deleteGitPrompt';
 type AddStep =
@@ -22,7 +22,7 @@ type Props = {
 	onFormModeChange: (inForm: boolean) => void;
 };
 
-export default function BranchList({isActive, onFormModeChange}: Props) {
+export default function BranchList({ isActive, onFormModeChange }: Props) {
 	const [storeData, setStoreData] = useState<StoreData | null>(null);
 	const [branches, setBranches] = useState<Branch[]>([]);
 	const [mode, setMode] = useState<BranchMode>('list');
@@ -37,7 +37,7 @@ export default function BranchList({isActive, onFormModeChange}: Props) {
 	const [repos, setRepos] = useState<string[]>([]);
 	const [repoSelectIndex, setRepoSelectIndex] = useState(0);
 
-	const VISIBLE_COUNT = 8;
+	const VISIBLE_COUNT = 14;
 	const [visibleStart, setVisibleStart] = useState(0);
 	const [repoVisibleStart, setRepoVisibleStart] = useState(0);
 
@@ -64,7 +64,7 @@ export default function BranchList({isActive, onFormModeChange}: Props) {
 	const persistBranches = (newBranches: Branch[]) => {
 		setBranches(newBranches);
 		if (storeData) {
-			const newData = {...storeData, branches: newBranches};
+			const newData = { ...storeData, branches: newBranches };
 			setStoreData(newData);
 			saveData(newData);
 		}
@@ -72,7 +72,7 @@ export default function BranchList({isActive, onFormModeChange}: Props) {
 
 	const persistProjectDir = (dir: string) => {
 		if (storeData) {
-			const newData = {...storeData, projectDir: dir};
+			const newData = { ...storeData, projectDir: dir };
 			setStoreData(newData);
 			saveData(newData);
 		}
@@ -130,7 +130,7 @@ export default function BranchList({isActive, onFormModeChange}: Props) {
 				enterAddMode();
 			}
 		},
-		{isActive: isActive && mode === 'list'},
+		{ isActive: isActive && mode === 'list' },
 	);
 
 	// Action mode
@@ -152,7 +152,7 @@ export default function BranchList({isActive, onFormModeChange}: Props) {
 				}
 			}
 		},
-		{isActive: isActive && mode === 'action'},
+		{ isActive: isActive && mode === 'action' },
 	);
 
 	// Delete Git Prompt mode
@@ -178,15 +178,15 @@ export default function BranchList({isActive, onFormModeChange}: Props) {
 							? path.join(os.homedir(), storeData.projectDir.slice(1))
 							: storeData.projectDir;
 						const repoPath = path.join(fullPath, selectedBranch.repo);
-						execSync(`git branch -D ${selectedBranch.branch}`, {cwd: repoPath, stdio: 'ignore'});
-					} catch {}
+						execSync(`git branch -D ${selectedBranch.branch}`, { cwd: repoPath, stdio: 'ignore' });
+					} catch { }
 				}
 				doDeleteRecord();
 			} else if (input.toLowerCase() === 'n') {
 				doDeleteRecord();
 			}
 		},
-		{isActive: isActive && mode === 'deleteGitPrompt'},
+		{ isActive: isActive && mode === 'deleteGitPrompt' },
 	);
 
 	// Add mode - choose step
@@ -207,7 +207,7 @@ export default function BranchList({isActive, onFormModeChange}: Props) {
 				}
 			}
 		},
-		{isActive: isActive && mode === 'add' && addStep === 'choose'},
+		{ isActive: isActive && mode === 'add' && addStep === 'choose' },
 	);
 
 	// Add mode - repo select
@@ -227,7 +227,7 @@ export default function BranchList({isActive, onFormModeChange}: Props) {
 				setAddStep('branchInput');
 			}
 		},
-		{isActive: isActive && mode === 'add' && addStep === 'repoSelect'},
+		{ isActive: isActive && mode === 'add' && addStep === 'repoSelect' },
 	);
 
 	// Add mode - escape for text input steps
@@ -263,15 +263,15 @@ export default function BranchList({isActive, onFormModeChange}: Props) {
 							? path.join(os.homedir(), storeData.projectDir.slice(1))
 							: storeData.projectDir;
 						const repoPath = path.join(fullPath, formRepo.trim());
-						execSync(`git checkout -b ${formBranch.trim()}`, {cwd: repoPath, stdio: 'ignore'});
-					} catch {}
+						execSync(`git checkout -b ${formBranch.trim()}`, { cwd: repoPath, stdio: 'ignore' });
+					} catch { }
 				}
 				setMode('list');
 			} else if (input.toLowerCase() === 'n') {
 				setMode('list');
 			}
 		},
-		{isActive: isActive && mode === 'add' && addStep === 'gitPrompt'},
+		{ isActive: isActive && mode === 'add' && addStep === 'gitPrompt' },
 	);
 
 	// ---------- RENDER ----------
