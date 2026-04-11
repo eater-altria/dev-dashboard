@@ -44,6 +44,14 @@ export default function RssFeedTab({isActive, onFormModeChange}: Props) {
 	const [articleLoading, setArticleLoading] = useState(false);
 	const [articleError, setArticleError] = useState('');
 
+	const VISIBLE_COUNT = 8;
+	const [visibleStart, setVisibleStart] = useState(0);
+
+	useEffect(() => {
+		if (selectedIndex < visibleStart) setVisibleStart(selectedIndex);
+		else if (selectedIndex >= visibleStart + VISIBLE_COUNT) setVisibleStart(selectedIndex - VISIBLE_COUNT + 1);
+	}, [selectedIndex, visibleStart]);
+
 	useEffect(() => {
 		const data = loadData();
 		setStoreData(data);
@@ -402,8 +410,21 @@ export default function RssFeedTab({isActive, onFormModeChange}: Props) {
 
 			{feeds.length === 0 && <Text dimColor> 暂无订阅源</Text>}
 
-			{feeds.map((feed, index) => {
-				const isSel = index === selectedIndex;
+			{[...feeds, {isAddNew: true, id: 'add-new'}].slice(visibleStart, visibleStart + VISIBLE_COUNT).map((item: any, index) => {
+				const actualIndex = visibleStart + index;
+				const isSel = actualIndex === selectedIndex;
+				
+				if (item.isAddNew) {
+					return (
+						<Box key="add-new">
+							<Text color={isSel ? 'cyan' : 'gray'}>
+								{isSel ? '▸ ' : '  '}+ 新增订阅源
+							</Text>
+						</Box>
+					);
+				}
+
+				const feed = item as RssFeed;
 				return (
 					<Box key={feed.id} flexDirection="column">
 						<Box>
@@ -426,12 +447,6 @@ export default function RssFeedTab({isActive, onFormModeChange}: Props) {
 					</Box>
 				);
 			})}
-
-			<Box>
-				<Text color={selectedIndex === feeds.length ? 'cyan' : 'gray'}>
-					{selectedIndex === feeds.length ? '▸ ' : '  '}+ 新增订阅源
-				</Text>
-			</Box>
 
 			<Box marginTop={1}>
 				<Text dimColor>{mode === 'list' ? '↑↓ 移动 Enter 选择' : ''}</Text>

@@ -1,6 +1,6 @@
 {
 	"name": "@eater-altria/dev-dashboard",
-	"version": "5.4.0",
+	"version": "5.5.0",
 	"license": "MIT",
 	"bin": {
 		"dev-dashboard": "dist/cli.js"

@@ -155,6 +155,15 @@ export default function QuickActionList({isActive, onFormModeChange}: Props) {
 	}
 
 	// Render List View
+	const VISIBLE_COUNT = 10;
+
+	// Better bounds for scrolling
+	const [vStart, setVStart] = useState(0);
+	useEffect(() => {
+		if (selectedIndex < vStart) setVStart(selectedIndex);
+		else if (selectedIndex >= vStart + VISIBLE_COUNT) setVStart(selectedIndex - VISIBLE_COUNT + 1);
+	}, [selectedIndex, vStart]);
+
 	return (
 		<Box flexDirection="column" paddingX={2}>
 			<Box marginBottom={1}>
@@ -162,49 +171,30 @@ export default function QuickActionList({isActive, onFormModeChange}: Props) {
 				<Text dimColor> ({listItems.length - 1} commands)</Text>
 			</Box>
 
-			{/* npm commands section */}
-			<Box flexDirection="column" marginBottom={1}>
-				<Text bold color="blue">- npm命令：</Text>
-				{listItems.filter(i => i.type === 'npm').length === 0 ? (
-					<Box marginLeft={4}><Text dimColor>无</Text></Box>
-				) : (
-					listItems.map((item, i) => {
-						if (item.type !== 'npm') return null;
-						const isSel = i === selectedIndex;
-						return (
-							<Box key={`npm-${i}`} marginLeft={4}>
-								<Text color={isSel ? 'cyan' : 'white'}>
-									{isSel ? '▸ ' : '  '}
-									{item.label}
-								</Text>
-							</Box>
-						);
-					})
-				)}
-			</Box>
-
-			{/* global commands section */}
 			<Box flexDirection="column">
-				<Text bold color="green">- 全局快捷命令：</Text>
-				{listItems.map((item, i) => {
-					if (item.type === 'npm') return null;
-					const isSel = i === selectedIndex;
-					if (item.type === 'add_global') {
-						return (
-							<Box key="add-global" marginLeft={4} marginTop={storeData?.globalCommands?.length ? 0 : 0}>
-								<Text color={isSel ? 'cyan' : 'gray'}>
-									{isSel ? '▸ ' : '  '}
-									{item.label}
-								</Text>
-							</Box>
-						);
-					}
+				{listItems.slice(vStart, vStart + VISIBLE_COUNT).map((item, index) => {
+					const actualIdx = vStart + index;
+					const isSel = actualIdx === selectedIndex;
 					
+					let prefix = '';
+					let labelColor = 'white';
+					if (item.type === 'npm') {
+						prefix = '[NPM] ';
+						labelColor = 'blue';
+					} else if (item.type === 'global') {
+						prefix = '[Global] ';
+						labelColor = 'green';
+					} else {
+						labelColor = 'gray';
+					}
+
 					return (
-						<Box key={`global-${i}`} marginLeft={4}>
+						<Box key={`${item.type}-${actualIdx}`} marginLeft={2}>
 							<Text color={isSel ? 'cyan' : 'white'}>
 								{isSel ? '▸ ' : '  '}
-								{item.label}
+							</Text>
+							<Text color={isSel ? 'cyan' : labelColor}>
+								{prefix}{item.label}
 							</Text>
 						</Box>
 					);

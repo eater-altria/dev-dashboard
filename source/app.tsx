@@ -142,6 +142,8 @@ export default function App() {
 				borderColor="gray"
 				flexDirection="column"
 				paddingY={1}
+				height={24}
+				overflow="hidden"
 			>
 				{activeTab === 'todo' && (
 					<TodoList isActive onFormModeChange={handleTodoFormMode} />

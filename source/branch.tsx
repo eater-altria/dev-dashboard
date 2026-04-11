@@ -37,6 +37,20 @@ export default function BranchList({isActive, onFormModeChange}: Props) {
 	const [repos, setRepos] = useState<string[]>([]);
 	const [repoSelectIndex, setRepoSelectIndex] = useState(0);
 
+	const VISIBLE_COUNT = 8;
+	const [visibleStart, setVisibleStart] = useState(0);
+	const [repoVisibleStart, setRepoVisibleStart] = useState(0);
+
+	useEffect(() => {
+		if (selectedIndex < visibleStart) setVisibleStart(selectedIndex);
+		else if (selectedIndex >= visibleStart + VISIBLE_COUNT) setVisibleStart(selectedIndex - VISIBLE_COUNT + 1);
+	}, [selectedIndex, visibleStart]);
+
+	useEffect(() => {
+		if (repoSelectIndex < repoVisibleStart) setRepoVisibleStart(repoSelectIndex);
+		else if (repoSelectIndex >= repoVisibleStart + VISIBLE_COUNT) setRepoVisibleStart(repoSelectIndex - VISIBLE_COUNT + 1);
+	}, [repoSelectIndex, repoVisibleStart]);
+
 	useEffect(() => {
 		const data = loadData();
 		setStoreData(data);
@@ -316,14 +330,17 @@ export default function BranchList({isActive, onFormModeChange}: Props) {
 							{repos.length === 0 ? (
 								<Text dimColor>目录为空，或路径不正确</Text>
 							) : (
-								repos.map((repo, i) => (
-									<Box key={repo}>
-										<Text color={i === repoSelectIndex ? 'cyan' : 'white'}>
-											{i === repoSelectIndex ? '▸ ' : '  '}
-											{repo}
-										</Text>
-									</Box>
-								))
+								repos.slice(repoVisibleStart, repoVisibleStart + VISIBLE_COUNT).map((repo, i) => {
+									const actualIndex = repoVisibleStart + i;
+									return (
+										<Box key={repo}>
+											<Text color={actualIndex === repoSelectIndex ? 'cyan' : 'white'}>
+												{actualIndex === repoSelectIndex ? '▸ ' : '  '}
+												{repo}
+											</Text>
+										</Box>
+									);
+								})
 							)}
 						</Box>
 						<Box marginTop={1}>
@@ -426,8 +443,9 @@ export default function BranchList({isActive, onFormModeChange}: Props) {
 			{branches.length === 0 ? (
 				<Text dimColor> 暂无分支记录，按 a 新增</Text>
 			) : (
-				branches.map((b, index) => {
-					const isSel = index === selectedIndex;
+				branches.slice(visibleStart, visibleStart + VISIBLE_COUNT).map((b, index) => {
+					const actualIndex = visibleStart + index;
+					const isSel = actualIndex === selectedIndex;
 					return (
 						<Box key={b.id} flexDirection="column">
 							<Box>

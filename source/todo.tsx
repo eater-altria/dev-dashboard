@@ -211,6 +211,14 @@ export default function TodoList({ isActive, onFormModeChange }: Props) {
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [editContextValue, setEditContextValue] = useState('');
 
+	const VISIBLE_COUNT = 8;
+	const [visibleStart, setVisibleStart] = useState(0);
+
+	useEffect(() => {
+		if (selectedIndex < visibleStart) setVisibleStart(selectedIndex);
+		else if (selectedIndex >= visibleStart + VISIBLE_COUNT) setVisibleStart(selectedIndex - VISIBLE_COUNT + 1);
+	}, [selectedIndex, visibleStart]);
+
 	useEffect(() => {
 		const data = loadData();
 		setTodos(data.todos);
@@ -487,8 +495,9 @@ end tell`;
 			{todos.length === 0 ? (
 				<Text dimColor> 暂无待办项，按 a 新增</Text>
 			) : (
-				todos.map((todo, index) => {
-					const isSel = index === selectedIndex;
+				todos.slice(visibleStart, visibleStart + VISIBLE_COUNT).map((todo, index) => {
+					const actualIndex = visibleStart + index;
+					const isSel = actualIndex === selectedIndex;
 					const status = todo.completed
 						? 'completed'
 						: getDateStatus(todo);

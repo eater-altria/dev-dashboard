@@ -29,7 +29,7 @@ function loadPrefs(): Prefs {
 function savePrefs(prefs: Prefs) {
 	try {
 		fs.writeFileSync(PREFS_FILE, JSON.stringify(prefs, null, 2));
-	} catch {}
+	} catch { }
 }
 
 type Props = {
@@ -129,7 +129,7 @@ function fetchUserStatus(port: number, token: string): Promise<any> {
 async function fetchAntigravity(): Promise<ProviderInfo | null> {
 	try {
 		const { stdout } = await execAsync("ps -ww -eo pid,args | grep -E 'language_server' | grep -v grep").catch(() => ({ stdout: '' }));
-		
+
 		if (!stdout || !stdout.trim()) {
 			return null;
 		}
@@ -139,7 +139,7 @@ async function fetchAntigravity(): Promise<ProviderInfo | null> {
 		for (const line of lines) {
 			const tokenMatch = line.match(/--csrf_token[=\s]+([a-zA-Z0-9-]+)/i);
 			if (!tokenMatch) continue;
-			
+
 			const csrfToken = tokenMatch[1]!;
 			const parts = line.trim().split(/\s+/);
 			const pid = parts[0];
@@ -154,7 +154,7 @@ async function fetchAntigravity(): Promise<ProviderInfo | null> {
 						if (portMatch && portMatch[1]) ports.push(parseInt(portMatch[1]!, 10));
 					}
 				}
-			} catch (e) {}
+			} catch (e) { }
 
 			if (ports.length === 0) {
 				const portMatch = line.match(/--extension_server_port[=\s]+(\d+)/);
@@ -167,7 +167,7 @@ async function fetchAntigravity(): Promise<ProviderInfo | null> {
 					if (response && response.userStatus) {
 						const userStatus = response.userStatus;
 						const email = userStatus.email || "Local Context";
-						
+
 						const configs = userStatus.cascadeModelConfigData?.clientModelConfigs || [];
 						const models: ModelQuota[] = configs.map((c: any) => ({
 							id: c.modelOrAlias?.model || c.label,
@@ -182,9 +182,9 @@ async function fetchAntigravity(): Promise<ProviderInfo | null> {
 							id: 'antigravity',
 							name: 'Google AntiGravity',
 							accounts: [{ email, models }]
-						}; 
+						};
 					}
-				} catch (e) {}
+				} catch (e) { }
 			}
 		}
 
@@ -224,7 +224,7 @@ async function fetchCursorQuotas(): Promise<ProviderInfo | null> {
 					userId = subParts.length > 1 ? subParts[1] : decoded.sub;
 				}
 			}
-		} catch (e) {}
+		} catch (e) { }
 
 		if (!userId) return null;
 
@@ -324,7 +324,7 @@ async function fetchCodexQuotas(): Promise<ProviderInfo | null> {
 				if (authData?.tokens?.access_token) {
 					const accessToken = authData.tokens.access_token;
 					const accountId = authData.tokens.account_id || '';
-					
+
 					// Decode email from JWT if possible
 					try {
 						const parts = authData.tokens.id_token.split('.');
@@ -334,8 +334,8 @@ async function fetchCodexQuotas(): Promise<ProviderInfo | null> {
 							const decoded = JSON.parse(Buffer.from(payload, 'base64').toString('utf-8'));
 							if (decoded.email) codexAccountEmail = decoded.email;
 						}
-					} catch (e) {}
-					
+					} catch (e) { }
+
 					let usageText = '{}';
 					try {
 						const headers: Record<string, string> = {
@@ -361,7 +361,7 @@ async function fetchCodexQuotas(): Promise<ProviderInfo | null> {
 
 					const usageData = JSON.parse(usageText || '{}');
 					const planType = usageData.plan_type || 'Plus';
-					
+
 					// Primary rate limit window (5-hour)
 					const primaryWindow = usageData?.rate_limit?.primary_window;
 					if (primaryWindow && primaryWindow.used_percent !== undefined) {
@@ -371,11 +371,11 @@ async function fetchCodexQuotas(): Promise<ProviderInfo | null> {
 						} else if (primaryWindow.reset_after_seconds !== undefined) {
 							resetTimeStr = new Date(Date.now() + primaryWindow.reset_after_seconds * 1000).toISOString();
 						}
-						
+
 						const windowHours = primaryWindow.limit_window_seconds
 							? Math.round(primaryWindow.limit_window_seconds / 3600)
 							: 5;
-						
+
 						models.push({
 							id: 'codex-primary',
 							displayName: `Codex 额度 (${planType}, ${windowHours}h窗口)`,
@@ -396,11 +396,11 @@ async function fetchCodexQuotas(): Promise<ProviderInfo | null> {
 						} else if (secondaryWindow.reset_after_seconds !== undefined) {
 							resetTimeStr = new Date(Date.now() + secondaryWindow.reset_after_seconds * 1000).toISOString();
 						}
-						
+
 						const windowDays = secondaryWindow.limit_window_seconds
 							? Math.round(secondaryWindow.limit_window_seconds / 86400)
 							: 7;
-						
+
 						models.push({
 							id: 'codex-secondary',
 							displayName: `Codex 额度 (${planType}, ${windowDays}d窗口)`,
@@ -421,7 +421,7 @@ async function fetchCodexQuotas(): Promise<ProviderInfo | null> {
 						} else if (codeReviewWindow.reset_after_seconds !== undefined) {
 							resetTimeStr = new Date(Date.now() + codeReviewWindow.reset_after_seconds * 1000).toISOString();
 						}
-						
+
 						models.push({
 							id: 'codex-code-review',
 							displayName: `Code Review 额度 (${planType})`,
@@ -434,7 +434,7 @@ async function fetchCodexQuotas(): Promise<ProviderInfo | null> {
 					}
 				}
 			}
-		} catch(e) {}
+		} catch (e) { }
 
 		if (models.length === 0) {
 			if (loadError) {
@@ -454,7 +454,7 @@ async function fetchCodexQuotas(): Promise<ProviderInfo | null> {
 			name: 'OpenAI Codex',
 			accounts: [{ email: codexAccountEmail, models }]
 		};
-	} catch(e) {
+	} catch (e) {
 		return null;
 	}
 }
@@ -467,6 +467,16 @@ export default function AiQuotaTab({ isActive, onFormModeChange }: Props) {
 	const [isEditing, setIsEditing] = useState(false);
 	const [cursorIdx, setCursorIdx] = useState(0);
 	const [prefs, setPrefs] = useState<Prefs>(loadPrefs());
+
+	const [viewScrollOffset, setViewScrollOffset] = useState(0);
+
+	const EDIT_VISIBLE_COUNT = 15;
+	const [editVisibleStart, setEditVisibleStart] = useState(0);
+
+	useEffect(() => {
+		if (cursorIdx < editVisibleStart) setEditVisibleStart(cursorIdx);
+		else if (cursorIdx >= editVisibleStart + EDIT_VISIBLE_COUNT) setEditVisibleStart(cursorIdx - EDIT_VISIBLE_COUNT + 1);
+	}, [cursorIdx, editVisibleStart]);
 
 	// Handle Edit Mode Toggle
 	useEffect(() => {
@@ -520,7 +530,7 @@ export default function AiQuotaTab({ isActive, onFormModeChange }: Props) {
 	}, [isActive, isEditing]);
 
 	// Build rows for editor & display
-	type Row = 
+	type Row =
 		| { type: 'provider', id: string, name: string }
 		| { type: 'model', id: string, name: string, providerId: string, modelObj?: ModelQuota };
 
@@ -576,6 +586,9 @@ export default function AiQuotaTab({ isActive, onFormModeChange }: Props) {
 				const row = rows[cursorIdx];
 				if (row) toggleItem(row);
 			}
+		} else {
+			if (key.upArrow) setViewScrollOffset(o => Math.max(0, o - 3));
+			else if (key.downArrow) setViewScrollOffset(o => o + 3);
 		}
 	});
 
@@ -602,16 +615,17 @@ export default function AiQuotaTab({ isActive, onFormModeChange }: Props) {
 				<Box marginBottom={1}>
 					<Text bold color="yellow">✏️ 编辑可见性 (空格: 切换, E/ESC: 退出)</Text>
 				</Box>
-				{rows.map((row, idx) => {
-					const isFocused = idx === cursorIdx;
-					const isHidden = row.type === 'provider' 
+				{rows.slice(editVisibleStart, editVisibleStart + EDIT_VISIBLE_COUNT).map((row, idx) => {
+					const actualIdx = editVisibleStart + idx;
+					const isFocused = actualIdx === cursorIdx;
+					const isHidden = row.type === 'provider'
 						? prefs.hiddenProviders.includes(row.id)
 						: prefs.hiddenModels.includes(row.id);
-					
+
 					const prefix = isFocused ? '> ' : '  ';
 					const check = isHidden ? '[ ]' : '[x]';
 					const indent = row.type === 'model' ? '  ' : '';
-					
+
 					return (
 						<Text key={row.id} color={isFocused ? 'cyan' : undefined} dimColor={isHidden}>
 							{prefix}{indent}{check} {row.name}
@@ -622,6 +636,81 @@ export default function AiQuotaTab({ isActive, onFormModeChange }: Props) {
 		);
 	}
 
+	const viewNodes: React.ReactNode[] = [];
+
+	providers.forEach(p => {
+		if (prefs.hiddenProviders.includes(p.id)) return;
+		viewNodes.push(<Text key={`p-${p.id}`} bold color="cyan">🤖 {p.name}</Text>);
+
+		p.accounts.forEach(acc => {
+			if (acc.models.length === 0) {
+				viewNodes.push(
+					<Box key={`a-${p.id}-${acc.email}`} marginLeft={2}>
+						<Text dimColor>{acc.email}</Text>
+					</Box>
+				);
+				// Add spacer
+				viewNodes.push(<Text key={`spacer-a-${p.id}-${acc.email}`}> </Text>);
+				return;
+			}
+
+			acc.models.forEach(model => {
+				const uniqueModelId = `${p.id}::${acc.email}::${model.id}`;
+				if (prefs.hiddenModels.includes(uniqueModelId)) return;
+
+				let name = model.displayName || model.id;
+				if (acc.email && acc.email !== 'Local Context' && acc.email !== 'Codex CLI Local') {
+					name += ` (${acc.email})`;
+				}
+
+				viewNodes.push(
+					<Box key={`m-title-${uniqueModelId}`} marginLeft={2}>
+						<Text bold>{name}</Text>
+					</Box>
+				);
+
+				if (model.quotaInfo) {
+					viewNodes.push(
+						<Box key={`m-quota-${uniqueModelId}`} marginLeft={2}>
+							<Text>{'剩余 '} </Text>
+							<ProgressBar percent={(model.quotaInfo.remainingFraction ?? 1) * 100} width={30} />
+							{model.quotaInfo.remainingAmount !== undefined && model.quotaInfo.totalAmount !== undefined && (
+								<Text dimColor> ({model.quotaInfo.remainingAmount}/{model.quotaInfo.totalAmount})</Text>
+							)}
+						</Box>
+					);
+					if (model.quotaInfo.resetTime) {
+						viewNodes.push(
+							<Box key={`m-reset-${uniqueModelId}`} marginLeft={2}>
+								<Text dimColor>重置时间: {new Date(model.quotaInfo.resetTime).toLocaleString()}</Text>
+							</Box>
+						);
+					}
+				}
+
+				if (model.usageInfo) {
+					viewNodes.push(
+						<Box key={`m-usage-${uniqueModelId}`} flexDirection="column" marginLeft={2}>
+							<Text dimColor>今日消耗:</Text>
+							<Text>
+								⬆️ Input: {model.usageInfo.inputTokens}{'  '}
+								⬇️ Output: {model.usageInfo.outputTokens}
+							</Text>
+							<Text bold color="cyan">🚀 Total: {model.usageInfo.totalTokens}</Text>
+						</Box>
+					);
+				}
+
+				// Add spacer between models
+				viewNodes.push(<Text key={`spacer-m-${uniqueModelId}`}> </Text>);
+			});
+		});
+	});
+
+	// Slice viewNodes
+	const VIEW_VISIBLE_COUNT = 20;
+	const viewActualStart = Math.min(viewScrollOffset, Math.max(0, viewNodes.length - VIEW_VISIBLE_COUNT));
+
 	return (
 		<Box paddingX={2} flexDirection="column">
 			<Box marginBottom={1}>
@@ -629,67 +718,10 @@ export default function AiQuotaTab({ isActive, onFormModeChange }: Props) {
 				<Text bold color="yellow">e</Text>
 				<Text dimColor> 键配置工具及模型的展示与隐藏</Text>
 			</Box>
-
-			{providers.map(p => {
-				if (prefs.hiddenProviders.includes(p.id)) return null;
-
-				return (
-					<Box key={p.id} flexDirection="column" marginBottom={1}>
-						<Text bold color="cyan">🤖 {p.name}</Text>
-						
-						{p.accounts.map(acc => {
-							if (acc.models.length === 0) {
-								return (
-									<Box key={`${p.id}::${acc.email}`} marginLeft={2} marginBottom={1}>
-										<Text dimColor>{acc.email}</Text>
-									</Box>
-								);
-							}
-							return acc.models.map(model => {
-								const uniqueModelId = `${p.id}::${acc.email}::${model.id}`;
-								if (prefs.hiddenModels.includes(uniqueModelId)) return null;
-
-								let name = model.displayName || model.id;
-								if (acc.email && acc.email !== 'Local Context' && acc.email !== 'Codex CLI Local') {
-									name += ` (${acc.email})`;
-								}
-
-								return (
-									<Box key={uniqueModelId} flexDirection="column" marginLeft={2} marginBottom={1}>
-										<Text bold>{name}</Text>
-										
-										{model.quotaInfo && (
-											<>
-												<Box>
-													<Text>{'剩余 '} </Text>
-													<ProgressBar percent={(model.quotaInfo.remainingFraction ?? 1) * 100} width={30} />
-													{model.quotaInfo.remainingAmount !== undefined && model.quotaInfo.totalAmount !== undefined && (
-														<Text dimColor> ({model.quotaInfo.remainingAmount}/{model.quotaInfo.totalAmount})</Text>
-													)}
-												</Box>
-												{model.quotaInfo.resetTime && (
-													<Text dimColor>重置时间: {new Date(model.quotaInfo.resetTime).toLocaleString()}</Text>
-												)}
-											</>
-										)}
-
-										{model.usageInfo && (
-											<Box flexDirection="column">
-												<Text dimColor>今日消耗:</Text>
-												<Text>
-													⬆️ Input: {model.usageInfo.inputTokens}{'  '}
-													⬇️ Output: {model.usageInfo.outputTokens}
-												</Text>
-												<Text bold color="cyan">🚀 Total: {model.usageInfo.totalTokens}</Text>
-											</Box>
-										)}
-									</Box>
-								);
-							});
-						})}
-					</Box>
-				);
-			})}
+			<Box flexDirection="column" flexGrow={1}>
+				{viewNodes.slice(viewActualStart, viewActualStart + VIEW_VISIBLE_COUNT)}
+				{viewNodes.length === 0 && <Text dimColor>所有配额均已隐藏</Text>}
+			</Box>
 		</Box>
 	);
 }
