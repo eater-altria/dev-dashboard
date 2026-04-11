@@ -3,6 +3,8 @@ export type Todo = {
 	name: string;
 	startDate: string; // MMDD format, e.g. "0321"
 	endDate: string; // MMDD format, e.g. "0324"
+	startYear?: number;
+	endYear?: number;
 	completed: boolean;
 	context?: string;
 };

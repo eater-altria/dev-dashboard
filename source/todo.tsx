@@ -3,6 +3,7 @@ import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import { type Todo } from './types.js';
 import { loadData, saveData, generateId } from './store.js';
+import { exec } from 'child_process';
 
 type TodoMode = 'list' | 'action' | 'add' | 'edit' | 'context-view' | 'context-edit';
 
@@ -176,17 +177,18 @@ type Props = {
 };
 
 function getDateStatus(
-	startDate: string,
-	endDate: string,
+	todo: Todo,
 ): 'upcoming' | 'active' | 'overdue' {
 	const now = new Date();
-	const year = now.getFullYear();
-	const sm = parseInt(startDate.slice(0, 2), 10) - 1;
-	const sd = parseInt(startDate.slice(2, 4), 10);
-	const em = parseInt(endDate.slice(0, 2), 10) - 1;
-	const ed = parseInt(endDate.slice(2, 4), 10);
-	const start = new Date(year, sm, sd, 0, 0, 0);
-	const end = new Date(year, em, ed, 23, 59, 59);
+	const cy = now.getFullYear();
+	const sy = todo.startYear || cy;
+	const ey = todo.endYear || cy;
+	const sm = parseInt(todo.startDate.slice(0, 2), 10) - 1;
+	const sd = parseInt(todo.startDate.slice(2, 4), 10);
+	const em = parseInt(todo.endDate.slice(0, 2), 10) - 1;
+	const ed = parseInt(todo.endDate.slice(2, 4), 10);
+	const start = new Date(sy, sm, sd, 0, 0, 0);
+	const end = new Date(ey, em, ed, 23, 59, 59);
 	if (now < start) return 'upcoming';
 	if (now <= end) return 'active';
 	return 'overdue';
@@ -328,15 +330,61 @@ export default function TodoList({ isActive, onFormModeChange }: Props) {
 		} else if (formStep === 2) {
 			if (!/^\d{4}$/.test(value)) return;
 			if (mode === 'add') {
+				const now = new Date();
+				const cy = now.getFullYear();
+				const sm = parseInt(formStart.slice(0, 2), 10);
+				const sd = parseInt(formStart.slice(2, 4), 10);
+				const em = parseInt(formEnd.slice(0, 2), 10);
+				const ed = parseInt(formEnd.slice(2, 4), 10);
+				
+				const startYear = cy;
+				const endYear = em < sm ? cy + 1 : cy;
+
 				const newTodo: Todo = {
 					id: generateId(),
 					name: formName.trim(),
 					startDate: formStart,
 					endDate: formEnd,
+					startYear,
+					endYear,
 					completed: false,
 				};
 				persistTodos([...todos, newTodo]);
+
+				const script = `tell application "Calendar"
+	set theCal to first calendar whose writable is true
+	set dStart to (current date)
+	set year of dStart to ${startYear}
+	set month of dStart to ${sm}
+	set day of dStart to ${sd}
+	set hours of dStart to 0
+	set minutes of dStart to 0
+	set seconds of dStart to 0
+	
+	set dEnd to (current date)
+	set year of dEnd to ${endYear}
+	set month of dEnd to ${em}
+	set day of dEnd to ${ed}
+	set hours of dEnd to 23
+	set minutes of dEnd to 59
+	set seconds of dEnd to 59
+	
+	make new event at end of events of theCal with properties {summary:"${newTodo.name.replace(/"/g, '\\"')}", start date:dStart, end date:dEnd}
+end tell`;
+
+				exec(`osascript << 'EOF'\n${script}\nEOF`, (err) => {
+					if (err) {
+						// Ignored intentionally so it doesn't crash the terminal UI
+					}
+				});
 			} else if (editingId) {
+				const now = new Date();
+				const cy = now.getFullYear();
+				const sm = parseInt(formStart.slice(0, 2), 10);
+				const em = parseInt(formEnd.slice(0, 2), 10);
+				const startYear = cy;
+				const endYear = em < sm ? cy + 1 : cy;
+
 				persistTodos(
 					todos.map(t =>
 						t.id === editingId
@@ -345,6 +393,8 @@ export default function TodoList({ isActive, onFormModeChange }: Props) {
 								name: formName.trim(),
 								startDate: formStart,
 								endDate: formEnd,
+								startYear,
+								endYear,
 							}
 							: t,
 					),
@@ -441,7 +491,7 @@ export default function TodoList({ isActive, onFormModeChange }: Props) {
 					const isSel = index === selectedIndex;
 					const status = todo.completed
 						? 'completed'
-						: getDateStatus(todo.startDate, todo.endDate);
+						: getDateStatus(todo);
 					const color = todo.completed ? 'gray' : getStatusColor(status);
 					const cursor = isSel ? '▸' : ' ';
 					const check = todo.completed ? '✓' : ' ';
